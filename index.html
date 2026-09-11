@@ -422,7 +422,7 @@
       totalAnswered: getTotalAnswered(),
       threeDogCount: s.byLevel[3],
       masteryPercent: s.pct,
-      progress: JSON.stringify(progress)
+      dogDetails: JSON.stringify(progress) // full per-question 0~3 mastery map
     };
   }
 
@@ -439,25 +439,37 @@
     } catch (e) { /* ignore */ }
   }
 
+  /* Pulls this employee's full per-question dog-level record from the cloud
+     and merges it into local progress, taking whichever side has the HIGHER
+     dog count for each question — so switching devices never loses whatever
+     progress is furthest along on either side. */
   function tryCloudRestore() {
-    if (!isCloudConfigured()) return;
+    if (!isCloudConfigured()) return Promise.resolve();
     const identity = getIdentity();
-    if (!identity) return;
-    fetch(GAS_API_URL + "?employeeId=" + encodeURIComponent(identity.employeeId))
+    if (!identity) return Promise.resolve();
+    return fetch(GAS_API_URL + "?action=getUser&empId=" + encodeURIComponent(identity.employeeId))
       .then(res => res.json())
       .then(json => {
-        if (!json || json.status !== "ok" || !json.data || typeof json.data.progress !== "string") return;
-        let cloudProgress = {};
-        try { cloudProgress = JSON.parse(json.data.progress) || {}; } catch (e) { return; }
+        if (!json || json.status !== "ok" || !json.data) return;
+        const cloudDogDetails = json.data.dogDetails || {};
         let changed = false;
-        // Fill in anything this device doesn't have yet (e.g. first login on a
-        // new phone); never overwrite progress already recorded locally.
-        Object.keys(cloudProgress).forEach(qid => {
-          if (!(qid in progress)) { progress[qid] = cloudProgress[qid]; changed = true; }
+        Object.keys(cloudDogDetails).forEach(qid => {
+          const cloudLevel = Number(cloudDogDetails[qid]) || 0;
+          const localLevel = (qid in progress) ? (Number(progress[qid]) || 0) : -1;
+          if (cloudLevel > localLevel) {
+            progress[qid] = cloudLevel;
+            changed = true;
+          }
         });
         if (changed) {
           saveProgress(progress);
           if (view === "home") renderHome();
+        }
+        // Keep the "累積練習題數" counter as the higher of the two devices too,
+        // so it reads consistently on the leaderboard no matter which device synced last.
+        const cloudTotalAnswered = Number(json.data.totalAnswered) || 0;
+        if (cloudTotalAnswered > getTotalAnswered()) {
+          try { localStorage.setItem(TOTAL_ANSWERED_KEY, String(cloudTotalAnswered)); } catch (e) {}
         }
       })
       .catch(() => { /* best-effort; ignore network errors */ });
@@ -591,7 +603,7 @@
       <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div class="bg-paper rounded-2xl p-6 max-w-sm w-full pop-in border border-line shadow-xl">
           <h3 class="font-display text-lg font-700 mb-1">👤 設定身分</h3>
-          <p class="text-xs text-ink/60 mb-4 leading-relaxed">填寫姓名與員工編號，才能把進度同步到同事排行榜；只會存在這台裝置與排行榜🀄️。</p>
+          <p class="text-xs text-ink/60 mb-4 leading-relaxed">填寫姓名與員工編號，才能把進度同步到排行榜；只會存在這台裝置與排行榜🀄️。</p>
           <label class="text-xs text-ink/60 font-medium">姓名</label>
           <input id="identityNameInput" type="text" value="${escapeHtml(identity.name)}" placeholder="王小明"
             class="w-full border-2 border-line rounded-xl px-3 py-2 mt-1 mb-3 focus-ring" />
@@ -737,14 +749,75 @@
           </button>
         </div>
 
-        <button id="goLeaderboard" class="focus-ring w-full mt-4 bg-paper hover:bg-sand border border-line hover:border-ink/30 rounded-2xl p-4 flex items-center justify-between transition-colors">
-          <span class="flex items-center gap-2 font-display font-700 text-ink">🏆 同事排行榜</span>
+        <div class="bg-paper border border-line rounded-2xl p-5 mt-4">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-display font-700 text-ink flex items-center gap-1.5">🏆 排行榜</h3>
+            <span class="text-xs text-ink/40">依掌握度排序</span>
+          </div>
+          <div id="homeLeaderboardPreview" class="divide-y divide-line">
+            <p class="text-xs text-ink/40 text-center py-3">載入中...</p>
+          </div>
+        </div>
+
+        <button id="goLeaderboard" class="focus-ring w-full mt-3 bg-paper hover:bg-sand border border-line hover:border-ink/30 rounded-2xl p-4 flex items-center justify-between transition-colors">
+          <span class="flex items-center gap-2 font-display font-700 text-ink">🏆 完整排行榜</span>
           <span class="text-ink/40">→</span>
         </button>
       </section>`;
     document.getElementById("goStudy").onclick = () => go("studySetup");
     document.getElementById("goTest").onclick = () => go("testSetup");
     document.getElementById("goLeaderboard").onclick = () => go("leaderboard");
+    renderHomeLeaderboardPreview();
+  }
+
+  /* Compact top-5 leaderboard preview embedded directly on the home screen,
+     so people can see how they stack up without navigating into a sub-page. */
+  function renderHomeLeaderboardPreview() {
+    const el = document.getElementById("homeLeaderboardPreview");
+    if (!el) return;
+
+    if (!isCloudConfigured()) {
+      el.innerHTML = `<p class="text-xs text-ink/40 text-center py-3">尚未設定雲端同步，排行榜功能暫時無法使用。</p>`;
+      return;
+    }
+
+    fetch(GAS_API_URL)
+      .then(res => res.json())
+      .then(json => {
+        if (!json || json.status !== "ok" || !Array.isArray(json.data)) throw new Error("bad response");
+        renderHomeLeaderboardRows(json.data);
+      })
+      .catch(() => {
+        const target = document.getElementById("homeLeaderboardPreview");
+        if (target) target.innerHTML = `<p class="text-xs text-ink/40 text-center py-3">排行榜暫時無法讀取。</p>`;
+      });
+  }
+
+  function renderHomeLeaderboardRows(list) {
+    const el = document.getElementById("homeLeaderboardPreview");
+    if (!el) return; // the person may have already navigated away
+    const sorted = list.slice().sort((a, b) => (Number(b.masteryPercent) || 0) - (Number(a.masteryPercent) || 0));
+    const myIdentity = getIdentity();
+    const myId = myIdentity ? myIdentity.employeeId : null;
+
+    if (sorted.length === 0) {
+      el.innerHTML = `<p class="text-xs text-ink/40 text-center py-3">還沒有人上榜，完成一輪練習後就會出現在這裡。</p>`;
+      return;
+    }
+
+    const top = sorted.slice(0, 5);
+    el.innerHTML = top.map((entry, i) => {
+      const rank = i + 1;
+      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : ("#" + rank);
+      const isMe = myId && String(entry.employeeId) === String(myId);
+      const pct = Math.max(0, Math.min(100, Math.round(Number(entry.masteryPercent) || 0)));
+      return `
+        <div class="flex items-center gap-3 py-2 ${isMe ? "bg-leash-light -mx-2 px-2 rounded-lg" : ""}">
+          <span class="font-display font-700 w-7 text-center shrink-0">${medal}</span>
+          <span class="flex-1 truncate text-sm font-medium">${escapeHtml(entry.name || "未命名")}${isMe ? ' <span class="text-xs text-leash-ink font-normal">（我）</span>' : ""}</span>
+          <span class="font-display font-700 text-leash-ink text-sm shrink-0">${pct}%</span>
+        </div>`;
+    }).join("");
   }
 
   /* ---------------------------------------------------------------
@@ -1190,7 +1263,7 @@
     app.innerHTML = `
       <section class="mt-2">
         <button id="backHome" class="text-sm text-ink/60 hover:text-ink focus-ring rounded">← 返回首頁</button>
-        <h2 class="font-display text-2xl font-700 mt-3">🏆 同事排行榜</h2>
+        <h2 class="font-display text-2xl font-700 mt-3">🏆 排行榜</h2>
         <p class="text-sm text-ink/60 mt-1">依「掌握百分比」排序，資料每次進入本頁都會重新讀取。</p>
         <div id="leaderboardBody" class="mt-4">
           <div class="bg-paper border border-line rounded-2xl p-6 text-center text-sm text-ink/50">載入中...</div>
@@ -1289,7 +1362,14 @@
   };
 
   document.getElementById("editIdentityBtn").onclick = () => {
-    showIdentityModal({ allowCancel: true, onSaved: syncToCloud });
+    showIdentityModal({
+      allowCancel: true,
+      onSaved: () => {
+        // Pull whatever this employee ID already has in the cloud first (merging
+        // by the higher dog count per question), then push the merged result back.
+        tryCloudRestore().then(syncToCloud);
+      }
+    });
   };
 
   /* ---------------------------------------------------------------
