@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F8FAFC">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F172A">
+<!-- iOS "Add to Home Screen" full-screen app support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CAMS題庫">
+<!-- Android / Chrome "Add to Home Screen" support -->
+<meta name="mobile-web-app-capable" content="yes">
+<link id="manifestLink" rel="manifest">
+<link id="appleIconLink" rel="apple-touch-icon">
+<link id="faviconLink" rel="icon">
+<title>CAMS題庫｜練習系統</title>
+<!-- Apply the system light/dark preference as early as possible (before first
+     paint) to avoid a flash of the wrong theme, and keep listening so the page
+     switches instantly if the system theme changes while it's open. -->
+<script>
+  (function () {
+    try {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      function applyTheme(isDark) {
+        document.documentElement.classList.toggle('dark', isDark);
+      }
+      applyTheme(mq.matches);
+      if (mq.addEventListener) {
+        mq.addEventListener('change', function (e) { applyTheme(e.matches); });
+      } else if (mq.addListener) {
+        mq.addListener(function (e) { applyTheme(e.matches); }); // older Safari fallback
+      }
+    } catch (e) { /* matchMedia unsupported: just stay in light mode */ }
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['"Baloo 2"', 'sans-serif'],
+          body: ['"Noto Sans TC"', 'sans-serif'],
+        },
+        colors: {
+          // Base surface tokens — driven by CSS variables so they automatically
+          // adapt to the system's light/dark setting (see :root / html.dark below).
+          // The rgb(... / <alpha-value>) form keeps Tailwind's opacity modifiers
+          // (e.g. text-ink/60) working correctly with variable-driven colors.
+          sand:  'rgb(var(--c-sand)  / <alpha-value>)',
+          paper: 'rgb(var(--c-paper) / <alpha-value>)',
+          ink:   'rgb(var(--c-ink)   / <alpha-value>)',
+          line:  'rgb(var(--c-line)  / <alpha-value>)',
+          leash: {
+            DEFAULT: '#3F6247',
+            dark: '#2C4733',
+            light: 'rgb(var(--c-leash-light) / <alpha-value>)',
+            ink: 'rgb(var(--c-leash-ink) / <alpha-value>)'
+          },
+          mustard: {
+            DEFAULT: '#E3A857',
+            dark: '#B9822E',
+            light: 'rgb(var(--c-mustard-light) / <alpha-value>)',
+            ink: 'rgb(var(--c-mustard-ink) / <alpha-value>)'
+          },
+          rose: {
+            DEFAULT: '#C1666B',
+            dark: '#8F3A3F',
+            light: 'rgb(var(--c-rose-light) / <alpha-value>)',
+            ink: 'rgb(var(--c-rose-ink) / <alpha-value>)'
+          },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  /* ---- Light mode (default) ------------------------------------- */
+  :root {
+    color-scheme: light;
+    --c-sand: 248 250 252;     /* slate-50: overall page background */
+    --c-paper: 255 255 255;    /* white: cards, header, answer sheet */
+    --c-ink: 30 41 59;         /* slate-800: primary text */
+    --c-line: 226 232 240;     /* slate-200: borders */
+    --c-leash-light: 220 231 222;  /* soft green chip background */
+    --c-leash-ink: 44 71 51;       /* readable green text on chips/cards */
+    --c-mustard-light: 251 235 211; /* soft amber chip background */
+    --c-mustard-ink: 122 84 20;      /* readable amber text on chips/cards */
+    --c-rose-light: 246 222 222;    /* soft rose chip background */
+    --c-rose-ink: 143 58 63;        /* readable rose text on chips/cards */
+  }
+  /* ---- Dark mode --------------------------------------------------
+     Toggled by adding/removing the "dark" class on <html>, controlled
+     by JS that reads prefers-color-scheme and listens for live changes. */
+  html.dark {
+    color-scheme: dark;
+    --c-sand: 15 23 42;        /* slate-900: overall page background */
+    --c-paper: 30 41 59;       /* slate-800: cards, header, answer sheet */
+    --c-ink: 241 245 249;      /* slate-100: primary text */
+    --c-line: 51 65 85;        /* slate-700: borders */
+    --c-leash-light: 31 51 40;      /* muted dark-green chip background */
+    --c-leash-ink: 150 205 168;     /* light minty green text on chips/cards */
+    --c-mustard-light: 63 49 26;     /* muted dark-amber chip background */
+    --c-mustard-ink: 235 190 120;    /* light amber text on chips/cards */
+    --c-rose-light: 66 38 40;        /* muted dark-rose chip background */
+    --c-rose-ink: 236 170 174;       /* light rose text on chips/cards */
+  }
+  body { font-family: 'Noto Sans TC', sans-serif; background-color: rgb(var(--c-sand)); color: rgb(var(--c-ink)); transition: background-color .2s ease, color .2s ease; }
+  .font-display { font-family: 'Baloo 2', sans-serif; }
+  .leash-rule {
+    background-image: repeating-linear-gradient(to right, #3F6247 0, #3F6247 10px, transparent 10px, transparent 18px);
+    height: 3px;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--c-line)); border-radius: 4px; }
+  .dog-icon { filter: grayscale(100%); opacity: 0.28; }
+  .dog-icon.filled { filter: none; opacity: 1; }
+  .option-btn { transition: border-color .15s ease, background-color .15s ease, color .15s ease, transform .1s ease; }
+  .option-btn:active { transform: scale(0.99); }
+  @keyframes pop { 0% { transform: scale(0.9); opacity: 0;} 100% { transform: scale(1); opacity: 1;} }
+  .pop-in { animation: pop .18s ease-out; }
+  .focus-ring:focus-visible { outline: 3px solid #E3A857; outline-offset: 2px; }
+</style>
+<script>
+  // Build a manifest.json and app icon on the fly (as Blob URLs) so the whole
+  // app can still ship as a single index.html file, yet still behaves like an
+  // installable PWA when added to a phone's home screen.
+  (function () {
+    var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
+      + '<rect width="512" height="512" rx="96" fill="#2C4733"/>'
+      + '<text x="256" y="336" font-size="288" text-anchor="middle">🐾</text>'
+      + '</svg>';
+    var iconBlobUrl;
+    try {
+      iconBlobUrl = URL.createObjectURL(new Blob([iconSvg], { type: "image/svg+xml" }));
+      document.getElementById("appleIconLink").setAttribute("href", iconBlobUrl);
+      document.getElementById("faviconLink").setAttribute("href", iconBlobUrl);
+    } catch (e) { /* icon is a nice-to-have; ignore failures */ }
+
+    try {
+      var manifest = {
+        name: "CAMS題庫",
+        short_name: "CAMS題庫",
+        start_url: ".",
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#FAF7F0",
+        theme_color: "#2C4733",
+        icons: iconBlobUrl ? [{ src: iconBlobUrl, sizes: "512x512", type: "image/svg+xml" }] : []
+      };
+      var manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
+      document.getElementById("manifestLink").setAttribute("href", manifestBlobUrl);
+    } catch (e) { /* manifest is a progressive enhancement; ignore failures */ }
+  })();
+</script>
+</head>
+<body class="min-h-screen">
+
+<div class="max-w-3xl mx-auto px-4 pb-24">
+
+  <!-- Header -->
+  <header class="pt-8 pb-4">
+    <div class="bg-paper text-ink border border-line shadow-sm rounded-2xl px-5 py-5 flex items-start justify-between gap-4" style="padding-top: max(1.25rem, env(safe-area-inset-top));">
+      <div>
+        <h1 class="font-display text-3xl md:text-4xl font-800 text-leash-ink">🐾 CAMS題庫</h1>
+        <p class="text-sm text-ink/60 mt-1">熟練度用狗狗來記錄，答對牽出來遛，答錯牽回去練習。</p>
+      </div>
+      <div class="flex flex-col items-end gap-1.5 shrink-0">
+        <span id="identityDisplay" class="text-xs text-ink/50 whitespace-nowrap"></span>
+        <div class="flex items-center gap-3">
+          <button id="editIdentityBtn" class="text-xs text-ink/50 hover:text-ink underline underline-offset-2 whitespace-nowrap focus-ring rounded">修改身分</button>
+          <button id="resetProgressBtn" class="text-xs text-rose-ink hover:opacity-80 underline underline-offset-2 whitespace-nowrap focus-ring rounded">重置進度</button>
+        </div>
+      </div>
+    </div>
+    <div class="leash-rule mt-4 rounded-full"></div>
+  </header>
+
+  <!-- Main app root -->
+  <main id="app"></main>
+
+</div>
+
+<!-- In-app modal root (used instead of native confirm()/alert(), which some
+     embedded preview environments block or silently no-op) -->
+<div id="modalRoot"></div>
+
+<script src="questions.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------------
+   * Data / storage helpers
+   * ------------------------------------------------------------- */
+  const STORAGE_KEY = "wangwang_quiz_progress_v1";
+  const BANK_CACHE_KEY = "wangwang_quiz_bank_source_v1";
+  const IDENTITY_KEY = "wangwang_quiz_identity_v1";
+  const TOTAL_ANSWERED_KEY = "wangwang_quiz_total_answered_v1";
+
+  /* ---------------------------------------------------------------
+   * Cloud sync (Google Apps Script + Google Sheet backend)
+   *
+   * Paste the web app URL you get from deploying the companion Apps
+   * Script (Deploy > New deployment > Web app, "Execute as: Me",
+   * "Who has access: Anyone") below. Leaving it as the placeholder
+   * text disables all cloud features — the app still works fully
+   * offline using localStorage only.
+   * ------------------------------------------------------------- */
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzU2uON7RgRfNWTAOdEzQ6wabi5FxZDYDrkibQHYbQJDkKakw21EolvIEDPgctQd_0Q/exec";
+
+  function isCloudConfigured() {
+    return typeof GAS_API_URL === "string" && /^https?:\/\//i.test(GAS_API_URL.trim());
+  }
+
+  function getIdentity() {
+    try {
+      const raw = localStorage.getItem(IDENTITY_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && parsed.name && parsed.employeeId) return parsed;
+      return null;
+    } catch (e) { return null; }
+  }
+  function setIdentity(identity) {
+    try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch (e) {}
+  }
+
+  function getTotalAnswered() {
+    try { return parseInt(localStorage.getItem(TOTAL_ANSWERED_KEY) || "0", 10) || 0; } catch (e) { return 0; }
+  }
+  function incrementTotalAnswered() {
+    const v = getTotalAnswered() + 1;
+    try { localStorage.setItem(TOTAL_ANSWERED_KEY, String(v)); } catch (e) {}
+    return v;
+  }
+
+  let bank = (typeof window.QUESTION_BANK !== "undefined" && Array.isArray(window.QUESTION_BANK) && window.QUESTION_BANK.length > 0)
+    ? window.QUESTION_BANK
+    : null;
+  let importError = "";
+
+  /* Validate that a parsed value looks like a usable question bank. */
+  function isValidBank(arr) {
+    if (!Array.isArray(arr) || arr.length === 0) return false;
+    return arr.every(q => q && typeof q === "object"
+      && Array.isArray(q.options) && q.options.length > 0
+      && Array.isArray(q.answer));
+  }
+
+  /* Parse raw file text (either a .json array, or a .js file that assigns
+     window.QUESTION_BANK = [...]) into a question-bank array, or null. */
+  function parseQuestionBankText(text, filename) {
+    const trimmed = (text || "").trim();
+    const looksJson = /\.json$/i.test(filename || "") || /^[\[{]/.test(trimmed);
+
+    if (looksJson) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (isValidBank(parsed)) return parsed;
+        if (parsed && isValidBank(parsed.QUESTION_BANK)) return parsed.QUESTION_BANK;
+      } catch (e) { /* fall through and try as JS below */ }
+    }
+
+    // Execute as JS inside a sandboxed fake "window" so `window.QUESTION_BANK = [...]`
+    // assignments can be captured without touching the real global window.
+    try {
+      const fn = new Function("window", trimmed + "\n;return (window && window.QUESTION_BANK) || (typeof QUESTION_BANK !== 'undefined' ? QUESTION_BANK : null);");
+      const result = fn({});
+      if (isValidBank(result)) return result;
+    } catch (e) { /* fall through to regex fallback */ }
+
+    // Last resort: pull out the array literal that follows QUESTION_BANK =
+    const m = trimmed.match(/QUESTION_BANK\s*=\s*(\[[\s\S]*\])\s*;?\s*$/);
+    if (m) {
+      try {
+        const result2 = new Function("return (" + m[1] + ");")();
+        if (isValidBank(result2)) return result2;
+      } catch (e) { /* give up */ }
+    }
+    return null;
+  }
+
+  function cacheBankSource(text) {
+    try { localStorage.setItem(BANK_CACHE_KEY, text); } catch (e) {}
+  }
+
+  /* If no bundled bank was found, try a previously-imported copy cached
+     in localStorage (handy for preview environments that reload the page). */
+  if (!bank) {
+    try {
+      const cached = localStorage.getItem(BANK_CACHE_KEY);
+      if (cached) {
+        const parsed = parseQuestionBankText(cached, "cached.js");
+        if (parsed) bank = parsed;
+      }
+    } catch (e) {}
+  }
+
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveProgress(p) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+  let progress = loadProgress();
+
+  function getLevel(id) {
+    const v = progress[id];
+    return (typeof v === "number" && v >= 0 && v <= 3) ? v : 0;
+  }
+  function setLevel(id, level) {
+    level = Math.max(0, Math.min(3, level));
+    progress[id] = level;
+    saveProgress(progress);
+    return level;
+  }
+  function bumpLevel(id, wasCorrect) {
+    const cur = getLevel(id);
+    const next = wasCorrect ? Math.min(3, cur + 1) : Math.max(0, cur - 1);
+    return setLevel(id, next);
+  }
+
+  /* ---------------------------------------------------------------
+   * Generic helpers
+   * ------------------------------------------------------------- */
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function sample(arr, n) {
+    return shuffle(arr).slice(0, Math.min(n, arr.length));
+  }
+  function letterFor(i) { return String.fromCharCode(65 + i); }
+  function setsEqual(a, b) {
+    if (a.length !== b.length) return false;
+    const sa = new Set(a);
+    for (const v of b) if (!sa.has(v)) return false;
+    return true;
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+
+  /* Question banks often write explanations as one packed line, e.g.
+     "總結說明...A正確：因為... B錯誤：因為... C.其他說明 D、最後一點"
+     This inserts a line break right before each A/B/C/D option marker
+     (matching "A正確", "A錯誤", "A.", "A、", "A：", "A:", "A)" style markers)
+     so the explanation reads as one line per option instead of a wall of text.
+     Pair with the `whitespace-pre-line` Tailwind class on the element that
+     renders the result, so the inserted "\n" characters actually break the line. */
+  function formatExplanation(text) {
+    if (!text) return "";
+    let formatted = String(text).replace(
+      /\s*([A-D])(?=[.、:：\)\uFF09]|正確|正确|錯誤|错误|不正確|不正确)/g,
+      "\n$1"
+    );
+    formatted = formatted.replace(/^\n+/, "");
+    return formatted.trim();
+  }
+
+  /* prepare a runtime instance of a question: only the question ORDER is
+     randomized (handled by the caller shuffling the pool); the options
+     themselves always keep their original A/B/C/D order so the on-screen
+     labels stay consistent with the answer key in the source data and
+     never jump around after answering. */
+  function prepareInstance(q) {
+    return {
+      id: q.id,
+      type: q.type,
+      question: q.question,
+      explanation: q.explanation || "",
+      options: q.options.slice(),
+      correctIndices: q.answer.slice()
+    };
+  }
+
+  function dogHtml(level, size) {
+    size = size || "text-base";
+    let html = '<span class="inline-flex items-center gap-0.5 ' + size + '">';
+    for (let i = 0; i < 3; i++) {
+      html += '<span class="dog-icon' + (i < level ? ' filled' : '') + '">🐕</span>';
+    }
+    html += '</span>';
+    return html;
+  }
+
+  function overallStats() {
+    const total = bank.length;
+    let sum = 0, mastered = 0, byLevel = [0,0,0,0];
+    bank.forEach(q => {
+      const lv = getLevel(q.id);
+      sum += lv;
+      byLevel[lv]++;
+      if (lv === 3) mastered++;
+    });
+    const pct = total ? Math.round((sum / (total * 3)) * 100) : 0;
+    return { total, pct, mastered, byLevel };
+  }
+
+  /* ---------------------------------------------------------------
+   * Cloud sync helpers — best-effort only. Network failures never
+   * block the UI; practicing offline always keeps working locally.
+   * ------------------------------------------------------------- */
+  function buildSyncPayload() {
+    const identity = getIdentity() || { name: "", employeeId: "" };
+    const s = overallStats();
+    return {
+      employeeId: identity.employeeId,
+      name: identity.name,
+      totalAnswered: getTotalAnswered(),
+      threeDogCount: s.byLevel[3],
+      masteryPercent: s.pct,
+      progress: JSON.stringify(progress)
+    };
+  }
+
+  function syncToCloud() {
+    if (!isCloudConfigured()) return;
+    const identity = getIdentity();
+    if (!identity) return;
+    try {
+      fetch(GAS_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids a CORS preflight against Apps Script
+        body: JSON.stringify(buildSyncPayload())
+      }).catch(() => { /* best-effort; ignore network errors */ });
+    } catch (e) { /* ignore */ }
+  }
+
+  function tryCloudRestore() {
+    if (!isCloudConfigured()) return;
+    const identity = getIdentity();
+    if (!identity) return;
+    fetch(GAS_API_URL + "?employeeId=" + encodeURIComponent(identity.employeeId))
+      .then(res => res.json())
+      .then(json => {
+        if (!json || json.status !== "ok" || !json.data || typeof json.data.progress !== "string") return;
+        let cloudProgress = {};
+        try { cloudProgress = JSON.parse(json.data.progress) || {}; } catch (e) { return; }
+        let changed = false;
+        // Fill in anything this device doesn't have yet (e.g. first login on a
+        // new phone); never overwrite progress already recorded locally.
+        Object.keys(cloudProgress).forEach(qid => {
+          if (!(qid in progress)) { progress[qid] = cloudProgress[qid]; changed = true; }
+        });
+        if (changed) {
+          saveProgress(progress);
+          if (view === "home") renderHome();
+        }
+      })
+      .catch(() => { /* best-effort; ignore network errors */ });
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "—";
+    try {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      return d.toLocaleString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    } catch (e) { return String(value); }
+  }
+
+  /* ---------------------------------------------------------------
+   * Shared option-rendering helpers
+   *
+   * Two visual states for an option button:
+   *  - interactive multi-select (not yet submitted): clicking toggles
+   *    selection; selected options get a bold, high-contrast fill so the
+   *    choice is unmistakable.
+   *  - revealed (locked, after answering): correct options are green,
+   *    any wrong option the learner picked is red, everything else is neutral.
+   * ------------------------------------------------------------- */
+  function themeColors(theme) {
+    return theme === "mustard"
+      ? { border: "border-mustard-dark", bg: "bg-mustard", text: "text-ink", hover: "hover:border-mustard/60" }
+      : { border: "border-leash", bg: "bg-leash", text: "text-white", hover: "hover:border-leash/60" };
+  }
+
+  function multiOptionHtml(options, selectedSet, theme) {
+    const c = themeColors(theme);
+    return options.map((opt, i) => {
+      const selected = selectedSet.has(i);
+      const cls = selected
+        ? `option-btn focus-ring w-full text-left border-2 ${c.border} ${c.bg} ${c.text} shadow-md rounded-xl px-4 py-3 flex items-center gap-3`
+        : `option-btn focus-ring w-full text-left border-2 border-line bg-sand/40 ${c.hover} rounded-xl px-4 py-3 flex items-center gap-3`;
+      const checkbox = selected
+        ? `<span class="w-6 h-6 rounded-md bg-white/95 flex items-center justify-center text-base font-800 shrink-0 ${theme === "mustard" ? "text-mustard-ink" : "text-leash"}">✓</span>`
+        : `<span class="w-6 h-6 rounded-md border-2 border-ink/25 shrink-0"></span>`;
+      return `<button type="button" data-i="${i}" class="multiOptBtn ${cls}">
+        ${checkbox}
+        <span class="font-display font-700 ${selected ? "" : "text-ink/50"}">${letterFor(i)}</span>
+        <span class="flex-1">${escapeHtml(opt)}</span>
+      </button>`;
+    }).join("");
+  }
+
+  function singleOptionHtml(options) {
+    return options.map((opt, i) => `
+      <button type="button" data-i="${i}" class="singleOptBtn option-btn focus-ring w-full text-left border-2 border-line rounded-xl px-4 py-3 bg-sand/40 hover:border-leash/60 flex gap-3">
+        <span class="font-display font-700 text-ink/50">${letterFor(i)}</span>
+        <span class="flex-1">${escapeHtml(opt)}</span>
+      </button>`).join("");
+  }
+
+  /* Revealed / locked option list shown after answering.
+     - Single-choice: correct option is green, a wrong pick is red, everything
+       else stays neutral.
+     - Multiple-choice: four clearly distinct states so every option's fate is
+       obvious — grey (not selected, not correct), green (correct and picked),
+       orange (correct but missed), red (picked but wrong). */
+  function revealedOptionHtml(options, correctIndices, selectedIndices, isMultiple) {
+    return options.map((opt, i) => {
+      const isCorrectOpt = correctIndices.includes(i);
+      const wasSelected = selectedIndices.includes(i);
+      let cls = "border-line bg-sand/30";
+      let mark = "";
+
+      if (isMultiple) {
+        if (isCorrectOpt && wasSelected) { cls = "border-leash bg-leash-light"; mark = `<span class="text-leash-ink text-xs font-700 shrink-0">✔ 答對</span>`; }
+        else if (isCorrectOpt && !wasSelected) { cls = "border-mustard-dark bg-mustard-light"; mark = `<span class="text-mustard-ink text-xs font-700 shrink-0">⚠ 漏選</span>`; }
+        else if (!isCorrectOpt && wasSelected) { cls = "border-rose bg-rose-light"; mark = `<span class="text-rose-ink text-xs font-700 shrink-0">✘ 選錯</span>`; }
+        else { cls = "border-line bg-sand/30 opacity-70"; mark = ""; }
+      } else {
+        if (isCorrectOpt) { cls = "border-leash bg-leash-light"; mark = wasSelected ? `<span class="text-leash-ink text-xs font-700 shrink-0">✔ 你的選擇</span>` : `<span class="text-leash-ink text-xs font-700 shrink-0">✔ 正確答案</span>`; }
+        else if (wasSelected) { cls = "border-rose bg-rose-light"; mark = `<span class="text-rose-ink text-xs font-700 shrink-0">你的選擇</span>`; }
+      }
+
+      return `<div class="border-2 rounded-xl px-4 py-3 flex items-center gap-3 ${cls}">
+        <span class="font-display font-700 text-ink/50">${letterFor(i)}</span>
+        <span class="flex-1">${escapeHtml(opt)}</span>
+        ${mark}
+      </div>`;
+    }).join("");
+  }
+
+  /* ---------------------------------------------------------------
+   * App state & router
+   * ------------------------------------------------------------- */
+  const app = document.getElementById("app");
+
+  /* ---------------------------------------------------------------
+   * Custom confirm modal — used instead of window.confirm(), which some
+   * embedded/sandboxed preview environments block or silently ignore,
+   * which would otherwise make "end test" / "reset progress" appear to
+   * do nothing when clicked.
+   * ------------------------------------------------------------- */
+  function showConfirmModal(opts) {
+    const modalRoot = document.getElementById("modalRoot");
+    modalRoot.innerHTML = `
+      <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-paper rounded-2xl p-6 max-w-sm w-full pop-in border border-line shadow-xl">
+          ${opts.title ? `<h3 class="font-display text-lg font-700 mb-2">${escapeHtml(opts.title)}</h3>` : ""}
+          <p class="text-sm text-ink/80 leading-relaxed">${escapeHtml(opts.message || "")}</p>
+          <div class="flex justify-end gap-3 mt-5">
+            <button id="modalCancelBtn" class="focus-ring px-4 py-2 rounded-xl font-display font-700 border-2 border-line hover:border-ink/40">${escapeHtml(opts.cancelLabel || "取消")}</button>
+            <button id="modalConfirmBtn" class="focus-ring px-4 py-2 rounded-xl font-display font-700 text-white ${opts.danger ? "bg-rose hover:bg-rose-dark" : "bg-leash hover:bg-leash-dark"}">${escapeHtml(opts.confirmLabel || "確定")}</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById("modalCancelBtn").onclick = closeModal;
+    document.getElementById("modalConfirmBtn").onclick = () => {
+      closeModal();
+      if (typeof opts.onConfirm === "function") opts.onConfirm();
+    };
+  }
+  function closeModal() {
+    const modalRoot = document.getElementById("modalRoot");
+    modalRoot.innerHTML = "";
+  }
+
+  /* Identity modal — collects name + employee ID needed for cloud sync and
+     the leaderboard. Shown once on first launch, and again from the header's
+     "修改身分" button any time the person wants to update it. */
+  function showIdentityModal(opts) {
+    opts = opts || {};
+    const identity = getIdentity() || { name: "", employeeId: "" };
+    const modalRoot = document.getElementById("modalRoot");
+    modalRoot.innerHTML = `
+      <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-paper rounded-2xl p-6 max-w-sm w-full pop-in border border-line shadow-xl">
+          <h3 class="font-display text-lg font-700 mb-1">👤 設定身分</h3>
+          <p class="text-xs text-ink/60 mb-4 leading-relaxed">填寫姓名與員工編號，才能把進度同步到同事排行榜；只會存在這台裝置與排行榜🀄️。</p>
+          <label class="text-xs text-ink/60 font-medium">姓名</label>
+          <input id="identityNameInput" type="text" value="${escapeHtml(identity.name)}" placeholder="王小明"
+            class="w-full border-2 border-line rounded-xl px-3 py-2 mt-1 mb-3 focus-ring" />
+          <label class="text-xs text-ink/60 font-medium">員工編號</label>
+          <input id="identityIdInput" type="text" value="${escapeHtml(identity.employeeId)}" placeholder="123456"
+            class="w-full border-2 border-line rounded-xl px-3 py-2 mt-1 focus-ring" />
+          <p id="identityError" class="hidden text-xs text-rose-ink mt-2">姓名與員工編號都要填寫喔。</p>
+          <div class="flex justify-end gap-3 mt-5">
+            ${opts.allowCancel ? `<button id="identityCancelBtn" class="focus-ring px-4 py-2 rounded-xl font-display font-700 border-2 border-line hover:border-ink/40">取消</button>` : ""}
+            <button id="identitySaveBtn" class="focus-ring px-4 py-2 rounded-xl font-display font-700 text-white bg-leash hover:bg-leash-dark">儲存</button>
+          </div>
+        </div>
+      </div>`;
+    if (opts.allowCancel) {
+      document.getElementById("identityCancelBtn").onclick = closeModal;
+    }
+    document.getElementById("identitySaveBtn").onclick = () => {
+      const name = document.getElementById("identityNameInput").value.trim();
+      const employeeId = document.getElementById("identityIdInput").value.trim();
+      if (!name || !employeeId) {
+        document.getElementById("identityError").classList.remove("hidden");
+        return;
+      }
+      setIdentity({ name, employeeId });
+      closeModal();
+      refreshHeaderIdentity();
+      if (typeof opts.onSaved === "function") opts.onSaved();
+    };
+  }
+
+  function refreshHeaderIdentity() {
+    const el = document.getElementById("identityDisplay");
+    if (!el) return;
+    const identity = getIdentity();
+    el.textContent = identity ? `👤 ${identity.name}・${identity.employeeId}` : "尚未設定身分";
+  }
+
+  let view = "home";
+  let studySetupFilter = "all";
+  let study = null;   // { queue, idx, results: {idx: {selected,correct,newLevel}}, selectedSet }
+  let test = null;    // { instances, results: {idx:{selected,correct,newLevel}}, idx, selectedSet }
+  let lastTestReview = null; // for retest wrong / review after ending
+
+  function go(v) { view = v; render(); window.scrollTo({top:0, behavior:"smooth"}); }
+
+  function render() {
+    if (!bank) { renderImportScreen(); return; }
+    if (view === "home") renderHome();
+    else if (view === "studySetup") renderStudySetup();
+    else if (view === "studySession") renderStudySession();
+    else if (view === "studyDone") renderStudyDone();
+    else if (view === "testSetup") renderTestSetup();
+    else if (view === "testSession") renderTestSession();
+    else if (view === "testResult") renderTestResult();
+    else if (view === "leaderboard") renderLeaderboard();
+  }
+
+  function renderImportScreen() {
+    app.innerHTML = `
+      <div class="bg-paper border border-line rounded-2xl p-8 text-center mt-8">
+        <p class="text-4xl mb-3">🐕‍🦺</p>
+        <h2 class="font-display text-xl font-700 text-rose-ink mb-2">找不到題庫資料</h2>
+        <p class="text-sm text-ink/70 leading-relaxed">
+          這個環境無法自動讀取同目錄下的
+          <code class="bg-sand px-1.5 py-0.5 rounded border border-line">questions.js</code>，
+          請直接匯入檔案來啟動題庫。
+        </p>
+
+        <label for="bankFileInput"
+          class="focus-ring inline-block mt-5 px-6 py-3 rounded-xl font-display font-700 text-white bg-leash hover:bg-leash-dark cursor-pointer">
+          📂 匯入題庫（questions.js）
+        </label>
+        <input id="bankFileInput" type="file" accept=".js,.json,text/javascript,application/json" class="hidden">
+
+        <p class="text-xs text-ink/50 mt-4">支援 <code class="bg-sand px-1 py-0.5 rounded border border-line">.js</code>
+          （內含 <code class="bg-sand px-1 py-0.5 rounded border border-line">window.QUESTION_BANK = [...]</code>）
+          或純 <code class="bg-sand px-1 py-0.5 rounded border border-line">.json</code> 陣列檔。</p>
+
+        ${importError ? `<p class="text-sm text-rose-ink bg-rose-light border border-rose/40 rounded-lg px-3 py-2 mt-4 inline-block">⚠️ ${escapeHtml(importError)}</p>` : ""}
+      </div>`;
+
+    const input = document.getElementById("bankFileInput");
+    input.onchange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result || "");
+        const parsed = parseQuestionBankText(text, file.name);
+        if (parsed) {
+          bank = parsed;
+          importError = "";
+          cacheBankSource(text);
+          view = "home";
+          render();
+        } else {
+          importError = "無法解析這個檔案，請確認格式是否為 window.QUESTION_BANK = [...] 或 JSON 陣列。";
+          renderImportScreen();
+        }
+      };
+      reader.onerror = () => {
+        importError = "讀取檔案時發生錯誤，請再試一次。";
+        renderImportScreen();
+      };
+      reader.readAsText(file, "utf-8");
+    };
+  }
+
+  /* ---------------------------------------------------------------
+   * Home
+   * ------------------------------------------------------------- */
+  function renderHome() {
+    const s = overallStats();
+    app.innerHTML = `
+      <section class="mt-2">
+        <div class="bg-paper border border-line rounded-2xl p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5">
+          <div class="flex-1">
+            <p class="text-xs uppercase tracking-wide text-ink/50 font-medium">題庫總覽</p>
+            <p class="font-display text-2xl font-700 mt-1">共 ${s.total} 題・掌握度 ${s.pct}%</p>
+            <div class="w-full bg-line rounded-full h-2.5 mt-3 overflow-hidden">
+              <div class="bg-leash h-2.5 rounded-full" style="width:${s.pct}%"></div>
+            </div>
+          </div>
+          <div class="flex gap-3 md:gap-4 shrink-0">
+            ${[0,1,2,3].map(lv => `
+              <div class="text-center">
+                <div>${dogHtml(lv, "text-lg")}</div>
+                <p class="text-xs text-ink/60 mt-1">${s.byLevel[lv]} 題</p>
+              </div>`).join("")}
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4 mt-6">
+          <button id="goStudy" class="focus-ring group text-left bg-paper hover:bg-leash-light border border-line hover:border-leash rounded-2xl p-6 transition-colors">
+            <p class="text-3xl mb-2">📖</p>
+            <h3 class="font-display text-lg font-700 text-leash-ink">學習模式</h3>
+            <p class="text-sm text-ink/60 mt-1">依熟練度挑題，即答即看詳解，練到滿分三隻狗。</p>
+          </button>
+          <button id="goTest" class="focus-ring group text-left bg-paper hover:bg-mustard-light border border-line hover:border-mustard rounded-2xl p-6 transition-colors">
+            <p class="text-3xl mb-2">📝</p>
+            <h3 class="font-display text-lg font-700 text-mustard-ink">測驗模式</h3>
+            <p class="text-sm text-ink/60 mt-1">限定題數作答，每題即時對答案，隨時可結束測驗看總結。</p>
+          </button>
+        </div>
+
+        <button id="goLeaderboard" class="focus-ring w-full mt-4 bg-paper hover:bg-sand border border-line hover:border-ink/30 rounded-2xl p-4 flex items-center justify-between transition-colors">
+          <span class="flex items-center gap-2 font-display font-700 text-ink">🏆 同事排行榜</span>
+          <span class="text-ink/40">→</span>
+        </button>
+      </section>`;
+    document.getElementById("goStudy").onclick = () => go("studySetup");
+    document.getElementById("goTest").onclick = () => go("testSetup");
+    document.getElementById("goLeaderboard").onclick = () => go("leaderboard");
+  }
+
+  /* ---------------------------------------------------------------
+   * Study mode — setup
+   * ------------------------------------------------------------- */
+  function poolForFilter(filter) {
+    if (filter === "all") return bank.slice();
+    const lv = parseInt(filter, 10);
+    return bank.filter(q => getLevel(q.id) === lv);
+  }
+
+  function renderStudySetup() {
+    const s = overallStats();
+    const options = [
+      { key: "all", label: "全部題目", count: s.total },
+      { key: "0", label: "0 隻狗", count: s.byLevel[0] },
+      { key: "1", label: "1 隻狗", count: s.byLevel[1] },
+      { key: "2", label: "2 隻狗", count: s.byLevel[2] },
+      { key: "3", label: "3 隻狗", count: s.byLevel[3] },
+    ];
+    const poolCount = poolForFilter(studySetupFilter).length;
+
+    app.innerHTML = `
+      <section class="mt-2">
+        <button id="backHome" class="text-sm text-ink/60 hover:text-ink focus-ring rounded">← 返回首頁</button>
+        <h2 class="font-display text-2xl font-700 mt-3">學習模式設定</h2>
+        <p class="text-sm text-ink/60 mt-1">整體掌握度 ${s.pct}%，選擇想加強的熟練度區間。</p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5">
+          ${options.map(o => `
+            <button data-filter="${o.key}" class="filterBtn focus-ring rounded-xl border p-3 text-center transition-colors
+              ${studySetupFilter === o.key ? "border-leash bg-leash-light" : "border-line bg-paper hover:border-leash/60"}">
+              <p class="text-sm font-medium">${o.label}</p>
+              <p class="text-xs text-ink/50 mt-0.5">${o.count} 題</p>
+            </button>`).join("")}
+        </div>
+
+        <div class="bg-paper border border-line rounded-2xl p-5 mt-6 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-ink/60">本次範圍共</p>
+            <p class="font-display text-2xl font-700 text-leash-ink">${poolCount} 題</p>
+          </div>
+          <button id="startStudy" ${poolCount === 0 ? "disabled" : ""}
+            class="focus-ring px-6 py-3 rounded-xl font-display font-700 transition-colors
+            ${poolCount === 0 ? "bg-line text-ink/40 cursor-not-allowed" : "bg-leash text-white hover:bg-leash-dark"}">
+            開始學習
+          </button>
+        </div>
+        ${poolCount === 0 ? `<p class="text-xs text-rose-ink mt-2">這個範圍目前沒有題目喔，換一個熟練度試試。</p>` : ""}
+      </section>`;
+
+    document.getElementById("backHome").onclick = () => go("home");
+    document.querySelectorAll(".filterBtn").forEach(btn => {
+      btn.onclick = () => { studySetupFilter = btn.dataset.filter; renderStudySetup(); };
+    });
+    const startBtn = document.getElementById("startStudy");
+    if (startBtn) startBtn.onclick = () => startStudySession(poolForFilter(studySetupFilter));
+  }
+
+  function startStudySession(pool) {
+    const queue = shuffle(pool).map(prepareInstance);
+    study = { queue, idx: 0, results: {}, selectedSet: new Set() };
+    go("studySession");
+  }
+
+  /* ---------------------------------------------------------------
+   * Study mode — session
+   * ------------------------------------------------------------- */
+  function renderStudySession() {
+    const total = study.queue.length;
+    const q = study.queue[study.idx];
+    const level = getLevel(q.id);
+    const isMultiple = q.type === "multiple";
+    const res = study.results[study.idx];
+    const answered = !!res;
+    const answeredCount = Object.keys(study.results).length;
+    const correctSoFar = Object.values(study.results).filter(r => r.correct).length;
+
+    app.innerHTML = `
+      <section class="mt-2">
+        <div class="bg-paper border border-line rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <button id="endStudy" class="focus-ring px-4 py-2 rounded-xl border-2 border-rose text-rose-ink font-display font-700 hover:bg-rose-light transition-colors">■ 結束學習</button>
+          <span class="text-sm text-ink/60">第 ${study.idx + 1} / ${total} 題・本輪已答對 ${correctSoFar}/${answeredCount}</span>
+        </div>
+        <div class="w-full bg-line rounded-full h-1.5 mt-2 overflow-hidden">
+          <div class="bg-leash h-1.5 rounded-full" style="width:${(study.idx / total) * 100}%"></div>
+        </div>
+
+        <div class="bg-paper border border-line rounded-2xl p-5 md:p-6 mt-5 pop-in">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs font-700 px-2.5 py-1 rounded-full ${isMultiple ? "bg-mustard-light text-mustard-ink" : "bg-leash-light text-leash-ink"}">${isMultiple ? "多選題" : "單選題"}</span>
+            <div id="dogDisplay" class="shrink-0">${dogHtml(level, "text-xl")}</div>
+          </div>
+          <h3 class="font-display text-lg font-700 leading-relaxed mt-3 w-full">${escapeHtml(q.question)}</h3>
+          ${isMultiple ? `<p class="text-xs text-mustard-ink mt-1.5 font-medium">※ 請選出所有正確答案後按下「送出答案」</p>` : `<p class="text-xs text-ink/40 mt-1.5">點選一個選項即可看結果</p>`}
+
+          <div id="optionsWrap" class="mt-4 space-y-2.5">
+            ${answered
+              ? revealedOptionHtml(q.options, q.correctIndices, res.selected, isMultiple)
+              : (isMultiple ? multiOptionHtml(q.options, study.selectedSet, "leash") : singleOptionHtml(q.options))}
+          </div>
+
+          ${(!answered && isMultiple) ? `<button id="submitMulti" ${study.selectedSet.size === 0 ? "disabled" : ""}
+              class="focus-ring mt-4 px-5 py-2.5 rounded-xl font-display font-700 text-ink bg-mustard hover:bg-mustard-dark hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">送出答案</button>` : ""}
+
+          <div id="feedback" class="${answered ? "" : "hidden"} mt-5">
+            ${answered ? `
+              <div class="rounded-xl border p-4 ${res.correct ? "border-leash bg-leash-light" : "border-rose bg-rose-light"}">
+                <p class="font-display font-700 ${res.correct ? "text-leash-ink" : "text-rose-ink"}">
+                  ${res.correct ? "✅ 答對了！" : "❌ 答錯了"} <span class="ml-2 text-sm font-body font-normal">熟練度 ${dogHtml(res.newLevel)}</span>
+                </p>
+                ${q.explanation ? `<p class="text-sm text-ink/80 mt-2 leading-relaxed whitespace-pre-line">${escapeHtml(formatExplanation(q.explanation))}</p>` : ""}
+              </div>` : ""}
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-5">
+          <button id="nextStudy" class="${answered ? "" : "hidden"} focus-ring px-6 py-3 rounded-xl font-display font-700 text-white bg-leash hover:bg-leash-dark">
+            ${study.idx === total - 1 ? "完成本輪" : "下一題"}
+          </button>
+        </div>
+      </section>`;
+
+    document.getElementById("endStudy").onclick = () => go("studyDone");
+
+    if (!answered) {
+      if (isMultiple) {
+        document.querySelectorAll(".multiOptBtn").forEach(btn => {
+          btn.onclick = () => {
+            const i = parseInt(btn.dataset.i, 10);
+            if (study.selectedSet.has(i)) study.selectedSet.delete(i); else study.selectedSet.add(i);
+            renderStudySession();
+          };
+        });
+        const submitBtn = document.getElementById("submitMulti");
+        if (submitBtn) submitBtn.onclick = () => {
+          if (study.selectedSet.size === 0) return;
+          finalizeStudyAnswer(q, Array.from(study.selectedSet));
+        };
+      } else {
+        document.querySelectorAll(".singleOptBtn").forEach(btn => {
+          btn.onclick = () => finalizeStudyAnswer(q, [parseInt(btn.dataset.i, 10)]);
+        });
+      }
+    } else {
+      const nextBtn = document.getElementById("nextStudy");
+      nextBtn.onclick = () => {
+        if (study.idx < study.queue.length - 1) {
+          study.idx++;
+          study.selectedSet = new Set();
+          renderStudySession();
+        } else {
+          go("studyDone");
+        }
+      };
+    }
+  }
+
+  function finalizeStudyAnswer(q, selectedIndices) {
+    const correct = setsEqual(selectedIndices, q.correctIndices);
+    const newLevel = bumpLevel(q.id, correct);
+    incrementTotalAnswered();
+    study.results[study.idx] = { selected: selectedIndices, correct, newLevel };
+    renderStudySession();
+  }
+
+  function renderStudyDone() {
+    const s = overallStats();
+    const answeredCount = study ? Object.keys(study.results).length : 0;
+    const correctCount = study ? Object.values(study.results).filter(r => r.correct).length : 0;
+    syncToCloud();
+    app.innerHTML = `
+      <section class="mt-6 text-center bg-paper border border-line rounded-2xl p-8">
+        <p class="text-4xl mb-2">🎉</p>
+        <h2 class="font-display text-2xl font-700 text-leash-ink">本輪學習結束</h2>
+        ${answeredCount > 0 ? `<p class="text-sm text-ink/60 mt-2">這一輪答了 ${answeredCount} 題，答對 ${correctCount} 題</p>` : ""}
+        <p class="text-sm text-ink/60 mt-1">題庫整體掌握度目前為 ${s.pct}%</p>
+        <div class="flex gap-3 justify-center mt-6 flex-wrap">
+          <button id="studyAgain" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-white bg-leash hover:bg-leash-dark">再學習一輪</button>
+          <button id="backHome2" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 border border-line hover:border-ink/40">返回首頁</button>
+        </div>
+      </section>`;
+    document.getElementById("studyAgain").onclick = () => go("studySetup");
+    document.getElementById("backHome2").onclick = () => go("home");
+  }
+
+  /* ---------------------------------------------------------------
+   * Test mode — setup
+   * ------------------------------------------------------------- */
+  let testSetupCount = 10;
+  function renderTestSetup() {
+    const max = bank.length;
+    const counts = [];
+    for (let n = 10; n <= 120; n += 10) counts.push(n);
+    if (max > 0 && max < 10) counts.push(max);
+    if (testSetupCount > max) testSetupCount = Math.min(10, max);
+
+    app.innerHTML = `
+      <section class="mt-2">
+        <button id="backHome" class="text-sm text-ink/60 hover:text-ink focus-ring rounded">← 返回首頁</button>
+        <h2 class="font-display text-2xl font-700 mt-3">測驗模式設定</h2>
+        <p class="text-sm text-ink/60 mt-1">題庫共有 ${max} 題，選擇本次抽題數量。</p>
+
+        <div class="grid grid-cols-4 sm:grid-cols-6 gap-2.5 mt-5">
+          ${counts.map(n => {
+            const disabled = n > max;
+            const active = n === testSetupCount;
+            return `<button data-n="${n}" ${disabled ? "disabled" : ""} class="countBtn focus-ring rounded-xl border py-2.5 text-sm font-medium transition-colors
+              ${disabled ? "border-line/60 text-ink/30 cursor-not-allowed" : active ? "border-mustard bg-mustard-light" : "border-line bg-paper hover:border-mustard/60"}">
+              ${n}
+            </button>`;
+          }).join("")}
+        </div>
+
+        <div class="bg-paper border border-line rounded-2xl p-5 mt-6 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-ink/60">本次測驗</p>
+            <p class="font-display text-2xl font-700 text-mustard-ink">${Math.min(testSetupCount, max)} 題</p>
+          </div>
+          <button id="startTest" class="focus-ring px-6 py-3 rounded-xl font-display font-700 text-ink bg-mustard hover:bg-mustard-dark hover:text-white">
+            開始測驗
+          </button>
+        </div>
+      </section>`;
+
+    document.getElementById("backHome").onclick = () => go("home");
+    document.querySelectorAll(".countBtn").forEach(btn => {
+      if (btn.disabled) return;
+      btn.onclick = () => { testSetupCount = parseInt(btn.dataset.n, 10); renderTestSetup(); };
+    });
+    document.getElementById("startTest").onclick = () => startTestSession(sample(bank, testSetupCount));
+  }
+
+  function startTestSession(pool) {
+    const instances = pool.map(prepareInstance);
+    test = { instances, results: {}, idx: 0, selectedSet: new Set() };
+    go("testSession");
+  }
+
+  /* ---------------------------------------------------------------
+   * Test mode — session (each question is answered & revealed
+   * immediately, same interaction pattern as study mode; the learner
+   * can freely move between questions via Prev/Next or the answer
+   * sheet, and explicitly ends the test whenever they're ready). */
+  /* ------------------------------------------------------------- */
+  function renderAnswerSheet() {
+    return `
+      <div class="grid grid-cols-8 sm:grid-cols-10 gap-1.5">
+        ${test.instances.map((inst, i) => {
+          const r = test.results[i];
+          const isCurrent = i === test.idx;
+          let cls = "border-line bg-paper text-ink/50";
+          if (r) cls = r.correct ? "border-leash bg-leash-light text-leash-ink" : "border-rose bg-rose-light text-rose-ink";
+          if (isCurrent) cls += " ring-2 ring-mustard-dark";
+          return `<button data-i="${i}" class="jumpBtn focus-ring aspect-square rounded-lg text-xs font-medium border flex items-center justify-center ${cls}">
+            ${i + 1}
+          </button>`;
+        }).join("")}
+      </div>`;
+  }
+
+  function renderTestSession() {
+    const total = test.instances.length;
+    const q = test.instances[test.idx];
+    const isMultiple = q.type === "multiple";
+    const res = test.results[test.idx];
+    const answered = !!res;
+    const answeredCount = Object.keys(test.results).length;
+
+    app.innerHTML = `
+      <section class="mt-2">
+        <div class="bg-paper border border-line rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <button id="endTest" class="focus-ring px-4 py-2 rounded-xl border-2 border-rose text-rose-ink font-display font-700 hover:bg-rose-light transition-colors">■ 結束測驗</button>
+          <span class="text-sm text-ink/60">已作答 ${answeredCount} / ${total}</span>
+        </div>
+
+        <div class="bg-paper border border-line rounded-2xl p-4 mt-4">
+          ${renderAnswerSheet()}
+        </div>
+
+        <div class="bg-paper border border-line rounded-2xl p-5 md:p-6 mt-4 pop-in">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs font-700 px-2.5 py-1 rounded-full ${isMultiple ? "bg-mustard-light text-mustard-ink" : "bg-leash-light text-leash-ink"}">${isMultiple ? "多選題" : "單選題"}</span>
+            <span class="text-xs text-ink/50 shrink-0">第 ${test.idx + 1} / ${total} 題</span>
+          </div>
+          <h3 class="font-display text-lg font-700 leading-relaxed mt-3 w-full">${escapeHtml(q.question)}</h3>
+          ${isMultiple ? `<p class="text-xs text-mustard-ink mt-1.5 font-medium">※ 請選出所有正確答案後按下「送出答案」</p>` : `<p class="text-xs text-ink/40 mt-1.5">點選一個選項即可看結果</p>`}
+
+          <div id="optionsWrap" class="mt-4 space-y-2.5">
+            ${answered
+              ? revealedOptionHtml(q.options, q.correctIndices, res.selected, isMultiple)
+              : (isMultiple ? multiOptionHtml(q.options, test.selectedSet, "mustard") : singleOptionHtml(q.options))}
+          </div>
+
+          ${(!answered && isMultiple) ? `<button id="submitMulti" ${test.selectedSet.size === 0 ? "disabled" : ""}
+              class="focus-ring mt-4 px-5 py-2.5 rounded-xl font-display font-700 text-ink bg-mustard hover:bg-mustard-dark hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">送出答案</button>` : ""}
+
+          ${answered ? `
+            <div class="rounded-xl border p-4 mt-5 ${res.correct ? "border-leash bg-leash-light" : "border-rose bg-rose-light"}">
+              <p class="font-display font-700 ${res.correct ? "text-leash-ink" : "text-rose-ink"}">
+                ${res.correct ? "✅ 答對了！" : "❌ 答錯了"}
+              </p>
+              ${q.explanation ? `<p class="text-sm text-ink/80 mt-2 leading-relaxed whitespace-pre-line">${escapeHtml(formatExplanation(q.explanation))}</p>` : ""}
+            </div>` : ""}
+        </div>
+
+        <div class="flex items-center justify-between mt-5 gap-3">
+          <button id="prevQ" ${test.idx === 0 ? "disabled" : ""} class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-ink bg-paper border-2 border-ink/30 hover:bg-sand hover:border-ink/50 disabled:opacity-30 disabled:cursor-not-allowed">← 上一題</button>
+          <div class="flex gap-3">
+            <button id="nextQ" ${test.idx === total - 1 ? "disabled" : ""} class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-ink bg-paper border-2 border-ink/30 hover:bg-sand hover:border-ink/50 disabled:opacity-30 disabled:cursor-not-allowed">下一題 →</button>
+            <button id="submitTest" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-white bg-rose hover:bg-rose-dark">結束測驗</button>
+          </div>
+        </div>
+      </section>`;
+
+    document.getElementById("endTest").onclick = () => attemptEndTest();
+    document.getElementById("submitTest").onclick = () => attemptEndTest();
+
+    document.querySelectorAll(".jumpBtn").forEach(btn => {
+      btn.onclick = () => { test.idx = parseInt(btn.dataset.i, 10); test.selectedSet = new Set(); renderTestSession(); };
+    });
+
+    if (!answered) {
+      if (isMultiple) {
+        document.querySelectorAll(".multiOptBtn").forEach(btn => {
+          btn.onclick = () => {
+            const i = parseInt(btn.dataset.i, 10);
+            if (test.selectedSet.has(i)) test.selectedSet.delete(i); else test.selectedSet.add(i);
+            renderTestSession();
+          };
+        });
+        const submitBtn = document.getElementById("submitMulti");
+        if (submitBtn) submitBtn.onclick = () => {
+          if (test.selectedSet.size === 0) return;
+          finalizeTestAnswer(q, Array.from(test.selectedSet));
+        };
+      } else {
+        document.querySelectorAll(".singleOptBtn").forEach(btn => {
+          btn.onclick = () => finalizeTestAnswer(q, [parseInt(btn.dataset.i, 10)]);
+        });
+      }
+    }
+
+    document.getElementById("prevQ").onclick = () => { if (test.idx > 0) { test.idx--; test.selectedSet = new Set(); renderTestSession(); } };
+    document.getElementById("nextQ").onclick = () => { if (test.idx < total - 1) { test.idx++; test.selectedSet = new Set(); renderTestSession(); } };
+  }
+
+  function finalizeTestAnswer(q, selectedIndices) {
+    const correct = setsEqual(selectedIndices, q.correctIndices);
+    const newLevel = bumpLevel(q.id, correct);
+    incrementTotalAnswered();
+    test.results[test.idx] = { selected: selectedIndices, correct, newLevel };
+    renderTestSession();
+  }
+
+  function attemptEndTest() {
+    const total = test.instances.length;
+    const answeredCount = Object.keys(test.results).length;
+    const unanswered = total - answeredCount;
+    const msg = unanswered > 0
+      ? `還有 ${unanswered} 題尚未作答，未作答的題目不計入正確也不會更新熟練度。確定要結束測驗嗎？`
+      : "確定要結束測驗並查看總結嗎？";
+    showConfirmModal({
+      title: "結束測驗",
+      message: msg,
+      confirmLabel: "結束測驗",
+      danger: true,
+      onConfirm: finalizeTest
+    });
+  }
+
+  function finalizeTest() {
+    const review = test.instances.map((q, i) => {
+      const r = test.results[i];
+      if (r) return { q, selected: r.selected, correct: r.correct, newLevel: r.newLevel, answered: true };
+      return { q, selected: [], correct: false, newLevel: getLevel(q.id), answered: false };
+    });
+    const correctCount = review.filter(r => r.correct).length;
+    lastTestReview = review;
+    test.result = { correctCount, total: review.length, accuracy: Math.round((correctCount / review.length) * 100) };
+    syncToCloud();
+    go("testResult");
+  }
+
+  function renderTestResult() {
+    const r = test.result;
+    const review = lastTestReview;
+    const wrongCount = review.filter(item => !item.correct).length;
+
+    app.innerHTML = `
+      <section class="mt-2">
+        <div class="bg-paper border border-line rounded-2xl p-6 text-center">
+          <p class="text-4xl mb-2">${r.accuracy >= 80 ? "🏆" : r.accuracy >= 50 ? "🐕" : "🦴"}</p>
+          <h2 class="font-display text-2xl font-700">測驗結果</h2>
+          <p class="font-display text-4xl font-800 text-leash-ink mt-2">${r.accuracy}%</p>
+          <p class="text-sm text-ink/60 mt-1">答對 ${r.correctCount} / ${r.total} 題</p>
+          <div class="flex gap-3 justify-center mt-5 flex-wrap">
+            <button id="backHome3" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 border border-line hover:border-ink/40">返回首頁</button>
+            <button id="retestAll" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 border border-line hover:border-ink/40">重測本次全部題目</button>
+            ${wrongCount > 0 ? `<button id="retestWrong" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-white bg-rose hover:bg-rose-dark">重測本次錯題（${wrongCount} 題）</button>` : ""}
+          </div>
+        </div>
+
+        <h3 class="font-display text-lg font-700 mt-6 mb-3">詳細回顧</h3>
+        <div class="space-y-3">
+          ${review.map((item, i) => `
+            <div class="bg-paper border rounded-xl p-4 ${item.correct ? "border-line" : "border-rose/60"}">
+              <div class="flex items-start justify-between gap-3">
+                <p class="text-sm font-medium leading-relaxed"><span class="text-ink/40">Q${i + 1}.</span> ${escapeHtml(item.q.question)}</p>
+                <span class="shrink-0 text-xs font-display font-700 px-2 py-1 rounded-full ${!item.answered ? "bg-line text-ink/50" : item.correct ? "bg-leash-light text-leash-ink" : "bg-rose-light text-rose-ink"}">
+                  ${!item.answered ? "未作答" : item.correct ? "答對" : "答錯"}
+                </span>
+              </div>
+              <div class="mt-2.5 space-y-1.5">
+                ${revealedOptionHtml(item.q.options, item.q.correctIndices, item.selected, item.q.type === "multiple")}
+              </div>
+              ${item.q.explanation ? `<p class="text-xs text-ink/60 mt-2.5 leading-relaxed whitespace-pre-line">💡 ${escapeHtml(formatExplanation(item.q.explanation))}</p>` : ""}
+              <p class="text-xs text-ink/40 mt-2">${item.answered ? `熟練度更新為 ${dogHtml(item.newLevel)}` : `未作答，熟練度維持 ${dogHtml(item.newLevel)}`}</p>
+            </div>`).join("")}
+        </div>
+      </section>`;
+
+    document.getElementById("backHome3").onclick = () => go("home");
+    document.getElementById("retestAll").onclick = () => {
+      const originals = review.map(r2 => bank.find(b => b.id === r2.q.id)).filter(Boolean);
+      startTestSession(originals);
+    };
+    const retestWrongBtn = document.getElementById("retestWrong");
+    if (retestWrongBtn) {
+      retestWrongBtn.onclick = () => {
+        const wrongOriginals = review.filter(r2 => !r2.correct).map(r2 => bank.find(b => b.id === r2.q.id)).filter(Boolean);
+        startTestSession(wrongOriginals);
+      };
+    }
+  }
+
+  /* ---------------------------------------------------------------
+   * Leaderboard — pulls every colleague's aggregate stats from the
+   * Google Sheet (via the Apps Script web app) and ranks them by
+   * mastery percentage.
+   * ------------------------------------------------------------- */
+  function renderLeaderboard() {
+    app.innerHTML = `
+      <section class="mt-2">
+        <button id="backHome" class="text-sm text-ink/60 hover:text-ink focus-ring rounded">← 返回首頁</button>
+        <h2 class="font-display text-2xl font-700 mt-3">🏆 同事排行榜</h2>
+        <p class="text-sm text-ink/60 mt-1">依「掌握百分比」排序，資料每次進入本頁都會重新讀取。</p>
+        <div id="leaderboardBody" class="mt-4">
+          <div class="bg-paper border border-line rounded-2xl p-6 text-center text-sm text-ink/50">載入中...</div>
+        </div>
+      </section>`;
+    document.getElementById("backHome").onclick = () => go("home");
+
+    if (!isCloudConfigured()) {
+      document.getElementById("leaderboardBody").innerHTML = `
+        <div class="bg-paper border border-line rounded-2xl p-6 text-center text-sm text-ink/60 leading-relaxed">
+          尚未設定雲端同步網址，排行榜暫時無法使用。<br>
+          請把程式碼開頭的 <code class="bg-sand px-1.5 py-0.5 rounded border border-line">GAS_API_URL</code>
+          換成你部署好的 Google Apps Script 網址。
+        </div>`;
+      return;
+    }
+
+    fetch(GAS_API_URL)
+      .then(res => res.json())
+      .then(json => {
+        if (!json || json.status !== "ok" || !Array.isArray(json.data)) throw new Error("bad response");
+        renderLeaderboardList(json.data);
+      })
+      .catch(() => {
+        const body = document.getElementById("leaderboardBody");
+        if (!body) return;
+        body.innerHTML = `
+          <div class="bg-paper border border-rose/50 rounded-2xl p-6 text-center text-sm text-rose-ink">
+            讀取排行榜失敗，請確認網路連線或稍後再試。
+            <div class="mt-3"><button id="retryLeaderboard" class="focus-ring px-4 py-2 rounded-xl border-2 border-line hover:border-ink/40 font-display font-700">重新載入</button></div>
+          </div>`;
+        const retryBtn = document.getElementById("retryLeaderboard");
+        if (retryBtn) retryBtn.onclick = () => renderLeaderboard();
+      });
+  }
+
+  function renderLeaderboardList(list) {
+    const body = document.getElementById("leaderboardBody");
+    if (!body) return; // the person may have already navigated away
+    const sorted = list.slice().sort((a, b) => (Number(b.masteryPercent) || 0) - (Number(a.masteryPercent) || 0));
+    const myIdentity = getIdentity();
+    const myId = myIdentity ? myIdentity.employeeId : null;
+
+    if (sorted.length === 0) {
+      body.innerHTML = `<div class="bg-paper border border-line rounded-2xl p-6 text-center text-sm text-ink/60">目前還沒有同事的資料，完成一輪學習或測驗後就會出現在這裡。</div>`;
+      return;
+    }
+
+    body.innerHTML = sorted.map((entry, i) => {
+      const rank = i + 1;
+      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : ("#" + rank);
+      const isMe = myId && String(entry.employeeId) === String(myId);
+      const pct = Math.max(0, Math.min(100, Math.round(Number(entry.masteryPercent) || 0)));
+      return `
+        <div class="bg-paper border-2 ${isMe ? "border-leash" : "border-line"} rounded-xl p-4 mb-3 ${isMe ? "bg-leash-light" : ""}">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="font-display text-lg font-800 w-9 text-center shrink-0">${medal}</span>
+              <div class="min-w-0">
+                <p class="font-display font-700 truncate">${escapeHtml(entry.name || "未命名")}${isMe ? ' <span class="text-xs text-leash-ink font-body font-normal">（我）</span>' : ""}</p>
+                <p class="text-xs text-ink/50">${escapeHtml(String(entry.employeeId || ""))}</p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="font-display text-lg font-700 text-leash-ink">${pct}%</p>
+              <p class="text-xs text-ink/50">${dogHtml(3, "text-xs")} × ${Number(entry.threeDogCount) || 0}</p>
+            </div>
+          </div>
+          <div class="w-full bg-line rounded-full h-1.5 mt-3 overflow-hidden">
+            <div class="bg-leash h-1.5 rounded-full" style="width:${pct}%"></div>
+          </div>
+          <div class="flex items-center justify-between mt-2">
+            <p class="text-xs text-ink/40">累積練習 ${Number(entry.totalAnswered) || 0} 題</p>
+            <p class="text-xs text-ink/40">最近更新：${escapeHtml(formatDateTime(entry.lastUpdated))}</p>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+
+  /* ---------------------------------------------------------------
+   * Header controls
+   * ------------------------------------------------------------- */
+  document.getElementById("resetProgressBtn").onclick = () => {
+    showConfirmModal({
+      title: "重置進度",
+      message: "確定要清除所有熟練度紀錄嗎？此動作無法復原。",
+      confirmLabel: "清除",
+      danger: true,
+      onConfirm: () => {
+        progress = {};
+        saveProgress(progress);
+        render();
+      }
+    });
+  };
+
+  document.getElementById("editIdentityBtn").onclick = () => {
+    showIdentityModal({ allowCancel: true, onSaved: syncToCloud });
+  };
+
+  /* ---------------------------------------------------------------
+   * Boot
+   * ------------------------------------------------------------- */
+  function afterIdentityReady() {
+    refreshHeaderIdentity();
+    render();
+    tryCloudRestore();
+  }
+
+  const existingIdentity = getIdentity();
+  if (!existingIdentity) {
+    refreshHeaderIdentity();
+    showIdentityModal({ allowCancel: false, onSaved: afterIdentityReady });
+  } else {
+    afterIdentityReady();
+  }
+})();
+</script>
+</body>
+</html>
