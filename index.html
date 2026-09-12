@@ -202,6 +202,8 @@
   const BANK_CACHE_KEY = "wangwang_quiz_bank_source_v1";
   const IDENTITY_KEY = "wangwang_quiz_identity_v1";
   const TOTAL_ANSWERED_KEY = "wangwang_quiz_total_answered_v1";
+  const EXAM_HISTORY_KEY = "wangwang_quiz_exam_history_v1";
+  const MAX_HISTORY_ENTRIES = 20;
 
   /* ---------------------------------------------------------------
    * Cloud sync (Google Apps Script + Google Sheet backend)
@@ -230,19 +232,101 @@
     try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch (e) {}
   }
 
+  /* All per-person data below (dog-level progress, total-answered counter,
+     exam history) is stored under a key that includes the *current* employee
+     ID. This matters on a shared device: without this, switching from one
+     employee ID to another would keep reading/writing the same bucket and
+     the new person would inherit whoever used the device before them. */
+  function currentStorageScope() {
+    const identity = getIdentity();
+    return identity && identity.employeeId ? String(identity.employeeId) : "anonymous";
+  }
+  function scopedKey(base) {
+    return base + "::" + currentStorageScope();
+  }
+
   function getTotalAnswered() {
-    try { return parseInt(localStorage.getItem(TOTAL_ANSWERED_KEY) || "0", 10) || 0; } catch (e) { return 0; }
+    try { return parseInt(localStorage.getItem(scopedKey(TOTAL_ANSWERED_KEY)) || "0", 10) || 0; } catch (e) { return 0; }
   }
   function incrementTotalAnswered() {
     const v = getTotalAnswered() + 1;
-    try { localStorage.setItem(TOTAL_ANSWERED_KEY, String(v)); } catch (e) {}
+    try { localStorage.setItem(scopedKey(TOTAL_ANSWERED_KEY), String(v)); } catch (e) {}
     return v;
   }
 
-  let bank = (typeof window.QUESTION_BANK !== "undefined" && Array.isArray(window.QUESTION_BANK) && window.QUESTION_BANK.length > 0)
-    ? window.QUESTION_BANK
-    : null;
-  let importError = "";
+  /* ---------------------------------------------------------------
+   * Exam history — a lightweight log of each finished study/test round.
+   * Only q.id + the chosen letters + right/wrong are stored (not full
+   * question text), so 20 entries stay tiny; full question text/options/
+   * explanation are looked up fresh from the current bank when the person
+   * expands an entry.
+   * ------------------------------------------------------------- */
+  function getExamHistory() {
+    try {
+      const raw = localStorage.getItem(scopedKey(EXAM_HISTORY_KEY));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+  }
+  function saveExamHistory(list) {
+    try { localStorage.setItem(scopedKey(EXAM_HISTORY_KEY), JSON.stringify(list)); } catch (e) {}
+  }
+  function indexForLetter(letter) {
+    return String(letter || "").toUpperCase().charCodeAt(0) - 65;
+  }
+  function formatTimestampNow() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  /* items: [{ qId, selected: [0-based indices], correct }] */
+  function buildExamHistoryEntry(mode, items) {
+    const total = items.length;
+    const correctCount = items.filter(it => it.correct).length;
+    return {
+      id: Date.now(),
+      timestamp: formatTimestampNow(),
+      mode,
+      total,
+      correctCount,
+      wrongCount: total - correctCount,
+      details: items.map(it => ({
+        qId: String(it.qId),
+        userAns: (it.selected || []).map(i => letterFor(i)),
+        isCorrect: !!it.correct
+      }))
+    };
+  }
+  /* Records a finished round (skips rounds where nothing was actually
+     answered) and keeps only the most recent MAX_HISTORY_ENTRIES locally. */
+  function addExamHistoryEntry(mode, items) {
+    if (!items || items.length === 0) return null;
+    const entry = buildExamHistoryEntry(mode, items);
+    const history = getExamHistory();
+    history.unshift(entry);
+    saveExamHistory(history.slice(0, MAX_HISTORY_ENTRIES));
+    return entry;
+  }
+  /* Combines cloud + local history by entry id, newest first, capped at
+     MAX_HISTORY_ENTRIES — used when restoring on a new device. */
+  function mergeExamHistory(cloudLogs) {
+    if (!Array.isArray(cloudLogs) || cloudLogs.length === 0) return false;
+    const local = getExamHistory();
+    const seen = new Set();
+    const merged = [];
+    local.concat(cloudLogs).forEach(entry => {
+      if (!entry || entry.id === undefined) return;
+      const key = String(entry.id);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(entry);
+    });
+    merged.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    const trimmed = merged.slice(0, MAX_HISTORY_ENTRIES);
+    const changed = JSON.stringify(trimmed) !== JSON.stringify(local);
+    if (changed) saveExamHistory(trimmed);
+    return changed;
+  }
 
   /* Validate that a parsed value looks like a usable question bank. */
   function isValidBank(arr) {
@@ -251,6 +335,32 @@
       && Array.isArray(q.options) && q.options.length > 0
       && Array.isArray(q.answer));
   }
+
+  /* Defends against duplicate ids in the source question bank (e.g. a
+     copy-paste mistake in questions.js). Progress is keyed by q.id, so if the
+     same id appears more than once in `bank`, a single answer to that
+     question would otherwise get counted once per duplicate row when
+     tallying "X 題 in N 隻狗" — the exact symptom of one correct answer
+     appearing to bump far more than one question. Keeps the first
+     occurrence of each id and drops the rest. */
+  function dedupeBankById(arr) {
+    if (!Array.isArray(arr)) return arr;
+    const seen = new Set();
+    const result = [];
+    arr.forEach(q => {
+      if (!q || q.id === undefined || q.id === null) return;
+      const key = String(q.id);
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(q);
+    });
+    return result;
+  }
+
+  let bank = (typeof window.QUESTION_BANK !== "undefined" && Array.isArray(window.QUESTION_BANK) && window.QUESTION_BANK.length > 0)
+    ? dedupeBankById(window.QUESTION_BANK)
+    : null;
+  let importError = "";
 
   /* Parse raw file text (either a .json array, or a .js file that assigns
      window.QUESTION_BANK = [...]) into a question-bank array, or null. */
@@ -296,21 +406,29 @@
       const cached = localStorage.getItem(BANK_CACHE_KEY);
       if (cached) {
         const parsed = parseQuestionBankText(cached, "cached.js");
-        if (parsed) bank = parsed;
+        if (parsed) bank = dedupeBankById(parsed);
       }
     } catch (e) {}
   }
 
   function loadProgress() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(scopedKey(STORAGE_KEY));
       return raw ? JSON.parse(raw) : {};
     } catch (e) { return {}; }
   }
   function saveProgress(p) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {}
+    try { localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(p)); } catch (e) {}
   }
   let progress = loadProgress();
+  /* Re-reads progress from storage under whichever employee ID is now
+     active. Must be called right after switching identity on the same
+     device, otherwise the in-memory `progress` object would keep pointing
+     at the previous person's data even though storage itself is correctly
+     scoped. */
+  function reloadProgressForCurrentIdentity() {
+    progress = loadProgress();
+  }
 
   function getLevel(id) {
     const v = progress[id];
@@ -344,10 +462,15 @@
   }
   function letterFor(i) { return String.fromCharCode(65 + i); }
   function setsEqual(a, b) {
+    // Order-independent, exact-match comparison (sort then compare as JSON),
+    // e.g. sortedA === sortedB via JSON.stringify — used for multi-choice
+    // grading, where the learner's picks must match the answer key exactly
+    // (no missed options, no extra options) to count as correct.
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
     if (a.length !== b.length) return false;
-    const sa = new Set(a);
-    for (const v of b) if (!sa.has(v)) return false;
-    return true;
+    const sortedA = a.slice().sort((x, y) => x - y);
+    const sortedB = b.slice().sort((x, y) => x - y);
+    return JSON.stringify(sortedA) === JSON.stringify(sortedB);
   }
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -422,7 +545,8 @@
       totalAnswered: getTotalAnswered(),
       threeDogCount: s.byLevel[3],
       masteryPercent: s.pct,
-      dogDetails: JSON.stringify(progress) // full per-question 0~3 mastery map
+      dogDetails: JSON.stringify(progress), // full per-question 0~3 mastery map
+      examLogs: JSON.stringify(getExamHistory()) // most recent rounds' answer history
     };
   }
 
@@ -439,10 +563,11 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* Pulls this employee's full per-question dog-level record from the cloud
-     and merges it into local progress, taking whichever side has the HIGHER
-     dog count for each question — so switching devices never loses whatever
-     progress is furthest along on either side. */
+  /* Pulls this employee's full per-question dog-level record (and recent
+     exam history) from the cloud and merges it into local storage, taking
+     whichever side has the HIGHER dog count for each question — so
+     switching devices never loses whatever progress is furthest along on
+     either side. */
   function tryCloudRestore() {
     if (!isCloudConfigured()) return Promise.resolve();
     const identity = getIdentity();
@@ -471,6 +596,8 @@
         if (cloudTotalAnswered > getTotalAnswered()) {
           try { localStorage.setItem(TOTAL_ANSWERED_KEY, String(cloudTotalAnswered)); } catch (e) {}
         }
+        // Merge in any exam-history rounds recorded on other devices.
+        mergeExamHistory(json.data.examLogs);
       })
       .catch(() => { /* best-effort; ignore network errors */ });
   }
@@ -627,7 +754,14 @@
         document.getElementById("identityError").classList.remove("hidden");
         return;
       }
+      const previousEmployeeId = getIdentity() ? getIdentity().employeeId : null;
       setIdentity({ name, employeeId });
+      if (employeeId !== previousEmployeeId) {
+        // Switched to a different person on this device (or set an identity
+        // for the first time) — load THAT identity's own local data instead
+        // of continuing to use whatever was loaded under the previous one.
+        reloadProgressForCurrentIdentity();
+      }
       closeModal();
       refreshHeaderIdentity();
       if (typeof opts.onSaved === "function") opts.onSaved();
@@ -659,6 +793,7 @@
     else if (view === "testSession") renderTestSession();
     else if (view === "testResult") renderTestResult();
     else if (view === "leaderboard") renderLeaderboard();
+    else if (view === "examHistory") renderExamHistory();
   }
 
   function renderImportScreen() {
@@ -694,7 +829,7 @@
         const text = String(reader.result || "");
         const parsed = parseQuestionBankText(text, file.name);
         if (parsed) {
-          bank = parsed;
+          bank = dedupeBankById(parsed);
           importError = "";
           cacheBankSource(text);
           view = "home";
@@ -763,10 +898,16 @@
           <span class="flex items-center gap-2 font-display font-700 text-ink">🏆 完整排行榜</span>
           <span class="text-ink/40">→</span>
         </button>
+
+        <button id="goExamHistory" class="focus-ring w-full mt-3 bg-paper hover:bg-sand border border-line hover:border-ink/30 rounded-2xl p-4 flex items-center justify-between transition-colors">
+          <span class="flex items-center gap-2 font-display font-700 text-ink">📋 答題歷史記錄</span>
+          <span class="text-ink/40">→</span>
+        </button>
       </section>`;
     document.getElementById("goStudy").onclick = () => go("studySetup");
     document.getElementById("goTest").onclick = () => go("testSetup");
     document.getElementById("goLeaderboard").onclick = () => go("leaderboard");
+    document.getElementById("goExamHistory").onclick = () => go("examHistory");
     renderHomeLeaderboardPreview();
   }
 
@@ -988,17 +1129,51 @@
     const s = overallStats();
     const answeredCount = study ? Object.keys(study.results).length : 0;
     const correctCount = study ? Object.values(study.results).filter(r => r.correct).length : 0;
+
+    // Record this round in exam history (only when something was actually
+    // answered) before syncing, so the upload includes this round too.
+    let reviewItems = [];
+    if (study && answeredCount > 0) {
+      reviewItems = Object.keys(study.results).map(idxStr => {
+        const idx = parseInt(idxStr, 10);
+        const q = study.queue[idx];
+        const r = study.results[idx];
+        return { q, selected: r.selected, correct: r.correct };
+      });
+      addExamHistoryEntry("學習模式", reviewItems.map(it => ({ qId: it.q.id, selected: it.selected, correct: it.correct })));
+    }
     syncToCloud();
+
     app.innerHTML = `
-      <section class="mt-6 text-center bg-paper border border-line rounded-2xl p-8">
-        <p class="text-4xl mb-2">🎉</p>
-        <h2 class="font-display text-2xl font-700 text-leash-ink">本輪學習結束</h2>
-        ${answeredCount > 0 ? `<p class="text-sm text-ink/60 mt-2">這一輪答了 ${answeredCount} 題，答對 ${correctCount} 題</p>` : ""}
-        <p class="text-sm text-ink/60 mt-1">題庫整體掌握度目前為 ${s.pct}%</p>
-        <div class="flex gap-3 justify-center mt-6 flex-wrap">
-          <button id="studyAgain" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-white bg-leash hover:bg-leash-dark">再學習一輪</button>
-          <button id="backHome2" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 border border-line hover:border-ink/40">返回首頁</button>
+      <section class="mt-6">
+        <div class="text-center bg-paper border border-line rounded-2xl p-8">
+          <p class="text-4xl mb-2">🎉</p>
+          <h2 class="font-display text-2xl font-700 text-leash-ink">本輪學習結束</h2>
+          ${answeredCount > 0 ? `<p class="text-sm text-ink/60 mt-2">這一輪答了 ${answeredCount} 題，答對 ${correctCount} 題</p>` : ""}
+          <p class="text-sm text-ink/60 mt-1">題庫整體掌握度目前為 ${s.pct}%</p>
+          <div class="flex gap-3 justify-center mt-6 flex-wrap">
+            <button id="studyAgain" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 text-white bg-leash hover:bg-leash-dark">再學習一輪</button>
+            <button id="backHome2" class="focus-ring px-5 py-2.5 rounded-xl font-display font-700 border border-line hover:border-ink/40">返回首頁</button>
+          </div>
         </div>
+
+        ${reviewItems.length > 0 ? `
+          <h3 class="font-display text-lg font-700 mt-6 mb-3">本輪作答明細</h3>
+          <div class="space-y-3">
+            ${reviewItems.map((item, i) => `
+              <div class="bg-paper border rounded-xl p-4 ${item.correct ? "border-line" : "border-rose/60"}">
+                <div class="flex items-start justify-between gap-3">
+                  <p class="text-sm font-medium leading-relaxed"><span class="text-ink/40">${i + 1}.</span> ${escapeHtml(item.q.question)}</p>
+                  <span class="shrink-0 text-xs font-display font-700 px-2 py-1 rounded-full ${item.correct ? "bg-leash-light text-leash-ink" : "bg-rose-light text-rose-ink"}">
+                    ${item.correct ? "答對" : "答錯"}
+                  </span>
+                </div>
+                <div class="mt-2.5 space-y-1.5">
+                  ${revealedOptionHtml(item.q.options, item.q.correctIndices, item.selected, item.q.type === "multiple")}
+                </div>
+                ${item.q.explanation ? `<p class="text-xs text-ink/60 mt-2.5 leading-relaxed whitespace-pre-line">💡 ${escapeHtml(formatExplanation(item.q.explanation))}</p>` : ""}
+              </div>`).join("")}
+          </div>` : ""}
       </section>`;
     document.getElementById("studyAgain").onclick = () => go("studySetup");
     document.getElementById("backHome2").onclick = () => go("home");
@@ -1197,7 +1372,27 @@
     });
     const correctCount = review.filter(r => r.correct).length;
     lastTestReview = review;
-    test.result = { correctCount, total: review.length, accuracy: Math.round((correctCount / review.length) * 100) };
+
+    // Resolve back to the FULL original bank objects (looked up once, here,
+    // by the question's global unique id — never by loop/array index) so
+    // "重測本次錯題" / "重測本次全部題目" load exactly these questions and
+    // nothing else, with zero chance of pulling in a fresh random draw.
+    const allQuestions = review.map(r => bank.find(b => b.id === r.q.id)).filter(Boolean);
+    const wrongQuestions = review.filter(r => !r.correct).map(r => bank.find(b => b.id === r.q.id)).filter(Boolean);
+
+    test.result = {
+      correctCount,
+      total: review.length,
+      accuracy: Math.round((correctCount / review.length) * 100),
+      allQuestions,
+      wrongQuestions
+    };
+
+    // Record this attempt in exam history (answered questions get their real
+    // pick; unanswered ones are logged with no selection, consistent with
+    // how they're already scored as incorrect above).
+    addExamHistoryEntry("測驗模式", review.map(r => ({ qId: r.q.id, selected: r.selected, correct: r.correct })));
+
     syncToCloud();
     go("testResult");
   }
@@ -1242,16 +1437,101 @@
 
     document.getElementById("backHome3").onclick = () => go("home");
     document.getElementById("retestAll").onclick = () => {
-      const originals = review.map(r2 => bank.find(b => b.id === r2.q.id)).filter(Boolean);
-      startTestSession(originals);
+      // Use the exact snapshot taken at finalize time — this test's own
+      // questions, not a fresh random sample from the bank.
+      startTestSession(r.allQuestions);
     };
     const retestWrongBtn = document.getElementById("retestWrong");
     if (retestWrongBtn) {
       retestWrongBtn.onclick = () => {
-        const wrongOriginals = review.filter(r2 => !r2.correct).map(r2 => bank.find(b => b.id === r2.q.id)).filter(Boolean);
-        startTestSession(wrongOriginals);
+        // Same guarantee: only the questions this attempt actually got wrong
+        // (matched by global unique id at finalize time), never re-drawn.
+        startTestSession(r.wrongQuestions);
       };
     }
+  }
+
+  /* ---------------------------------------------------------------
+   * Exam history — lists recent finished rounds; each card can expand to
+   * re-fetch full question text/options/explanation from the *current*
+   * bank by q.id (the log itself only stores id + chosen letters).
+   * ------------------------------------------------------------- */
+  function renderExamHistory() {
+    const history = getExamHistory();
+    app.innerHTML = `
+      <section class="mt-2">
+        <button id="backHome" class="text-sm text-ink/60 hover:text-ink focus-ring rounded">← 返回首頁</button>
+        <h2 class="font-display text-2xl font-700 mt-3">📋 答題歷史記錄</h2>
+        <p class="text-sm text-ink/60 mt-1">保留最近 ${MAX_HISTORY_ENTRIES} 筆學習/測驗紀錄，換裝置登入同員編也會自動合併。</p>
+        <div id="examHistoryList" class="mt-4 space-y-3">
+          ${history.length === 0
+            ? `<div class="bg-paper border border-line rounded-2xl p-6 text-center text-sm text-ink/50">還沒有任何紀錄，完成一輪學習或測驗後就會出現在這裡。</div>`
+            : history.map((entry, i) => examHistoryCardHtml(entry, i)).join("")}
+        </div>
+      </section>`;
+    document.getElementById("backHome").onclick = () => go("home");
+
+    history.forEach((entry, i) => {
+      const toggleBtn = document.getElementById(`historyToggle-${i}`);
+      if (toggleBtn) toggleBtn.onclick = () => toggleExamHistoryDetail(entry, i);
+    });
+  }
+
+  function examHistoryCardHtml(entry, i) {
+    const modeBadgeColor = entry.mode === "測驗模式" ? "bg-mustard-light text-mustard-ink" : "bg-leash-light text-leash-ink";
+    return `
+      <div class="bg-paper border border-line rounded-xl p-4">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <span class="text-xs font-700 px-2 py-1 rounded-full ${modeBadgeColor}">${escapeHtml(entry.mode || "")}</span>
+            <span class="text-xs text-ink/40 ml-2">${escapeHtml(entry.timestamp || "")}</span>
+          </div>
+          <span class="text-sm font-display font-700">
+            <span class="text-leash-ink">✔ ${entry.correctCount}</span> 題 /
+            <span class="text-rose-ink">✘ ${entry.wrongCount}</span> 題
+          </span>
+        </div>
+        <button id="historyToggle-${i}" class="focus-ring mt-3 text-xs font-700 text-ink/60 hover:text-ink underline underline-offset-2">展開檢視題目明細 ▾</button>
+        <div id="historyDetail-${i}" class="hidden mt-3 space-y-2.5"></div>
+      </div>`;
+  }
+
+  function toggleExamHistoryDetail(entry, i) {
+    const detailEl = document.getElementById(`historyDetail-${i}`);
+    const toggleBtn = document.getElementById(`historyToggle-${i}`);
+    if (!detailEl || !toggleBtn) return;
+    const isHidden = detailEl.classList.contains("hidden");
+    if (!isHidden) {
+      detailEl.classList.add("hidden");
+      toggleBtn.textContent = "展開檢視題目明細 ▾";
+      return;
+    }
+    toggleBtn.textContent = "收合題目明細 ▴";
+    detailEl.classList.remove("hidden");
+    if (detailEl.dataset.rendered === "1") return; // build the detail HTML once, then just toggle visibility
+
+    detailEl.innerHTML = entry.details.map((d, j) => {
+      const q = bank.find(b => String(b.id) === String(d.qId));
+      if (!q) {
+        return `<div class="border border-line rounded-lg p-3 text-xs text-ink/50">第 ${j + 1} 題（ID: ${escapeHtml(d.qId)}）在目前題庫中找不到，可能題庫已更新。</div>`;
+      }
+      const selectedIndices = (d.userAns || []).map(indexForLetter).filter(n => n >= 0);
+      const isMultiple = q.type === "multiple";
+      return `
+        <div class="border rounded-lg p-3 ${d.isCorrect ? "border-line" : "border-rose/60"}">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-sm font-medium leading-relaxed"><span class="text-ink/40">${j + 1}.</span> ${escapeHtml(q.question)}</p>
+            <span class="shrink-0 text-xs font-display font-700 px-2 py-0.5 rounded-full ${d.isCorrect ? "bg-leash-light text-leash-ink" : "bg-rose-light text-rose-ink"}">
+              ${d.isCorrect ? "答對" : "答錯"}
+            </span>
+          </div>
+          <div class="mt-2 space-y-1.5">
+            ${revealedOptionHtml(q.options, q.answer, selectedIndices, isMultiple)}
+          </div>
+          ${q.explanation ? `<p class="text-xs text-ink/60 mt-2 leading-relaxed whitespace-pre-line">💡 ${escapeHtml(formatExplanation(q.explanation))}</p>` : ""}
+        </div>`;
+    }).join("");
+    detailEl.dataset.rendered = "1";
   }
 
   /* ---------------------------------------------------------------
@@ -1365,8 +1645,11 @@
     showIdentityModal({
       allowCancel: true,
       onSaved: () => {
-        // Pull whatever this employee ID already has in the cloud first (merging
-        // by the higher dog count per question), then push the merged result back.
+        // Show this identity's own local data immediately (no leftover from
+        // whoever used this device before), then pull whatever this employee
+        // ID already has in the cloud (merging by the higher dog count per
+        // question), and push the merged result back.
+        render();
         tryCloudRestore().then(syncToCloud);
       }
     });
