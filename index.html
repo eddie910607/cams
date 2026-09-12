@@ -10,21 +10,29 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CAMS題庫">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMkM0NzMzIi8+CiAgPGVsbGlwc2UgY3g9IjI1NiIgY3k9IjMxNiIgcng9IjEwOCIgcnk9Ijg2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxjaXJjbGUgY3g9IjIxMiIgY3k9IjE0MiIgcj0iNDYiIGZpbGw9IiNGQUY3RjAiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIxNDIiIHI9IjQ2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMzYyIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzcyIEwzMzAgNDU2IEwzNzggNDI2IEw0MDggNDU0IEwzOTIgMzcyIFoiIGZpbGw9IiNCOTgyMkUiLz4KICA8Y2lyY2xlIGN4PSIzNzgiIGN5PSIzNjYiIHI9IjU4IiBmaWxsPSIjRTNBODU3IiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iOCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzY2IEwzNzAgMzg0IEw0MDYgMzQ0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMkM0NzMzIi8+CiAgPGVsbGlwc2UgY3g9IjI1NiIgY3k9IjMxNiIgcng9IjEwOCIgcnk9Ijg2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxjaXJjbGUgY3g9IjIxMiIgY3k9IjE0MiIgcj0iNDYiIGZpbGw9IiNGQUY3RjAiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIxNDIiIHI9IjQ2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMzYyIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzcyIEwzMzAgNDU2IEwzNzggNDI2IEw0MDggNDU0IEwzOTIgMzcyIFoiIGZpbGw9IiNCOTgyMkUiLz4KICA8Y2lyY2xlIGN4PSIzNzgiIGN5PSIzNjYiIHI9IjU4IiBmaWxsPSIjRTNBODU3IiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iOCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzY2IEwzNzAgMzg0IEw0MDYgMzQ0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K">
 <!-- Android / Chrome "Add to Home Screen" support -->
 <meta name="mobile-web-app-capable" content="yes">
-<link id="manifestLink" rel="manifest">
-<link id="appleIconLink" rel="apple-touch-icon">
-<link id="faviconLink" rel="icon">
+<link rel="manifest" href="manifest.json">
 <title>CAMS題庫｜練習系統</title>
 <!-- Apply the system light/dark preference as early as possible (before first
      paint) to avoid a flash of the wrong theme, and keep listening so the page
-     switches instantly if the system theme changes while it's open. -->
+     switches instantly if the system theme changes while it's open.
+     iOS only reads apple-mobile-web-app-status-bar-style at launch (it can't
+     be live-updated mid-session the way theme-color can), so this sets the
+     best matching value up front — "black-translucent" (light status-bar
+     icons over a transparent bar) for dark mode, "default" (dark icons) for
+     light mode — which takes effect from the next time the home-screen app
+     is opened. -->
 <script>
   (function () {
     try {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var statusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
       function applyTheme(isDark) {
         document.documentElement.classList.toggle('dark', isDark);
+        if (statusBarMeta) statusBarMeta.setAttribute('content', isDark ? 'black-translucent' : 'default');
       }
       applyTheme(mq.matches);
       if (mq.addEventListener) {
@@ -125,39 +133,16 @@
   @keyframes pop { 0% { transform: scale(0.9); opacity: 0;} 100% { transform: scale(1); opacity: 1;} }
   .pop-in { animation: pop .18s ease-out; }
   .focus-ring:focus-visible { outline: 3px solid #E3A857; outline-offset: 2px; }
-</style>
-<script>
-  // Build a manifest.json and app icon on the fly (as Blob URLs) so the whole
-  // app can still ship as a single index.html file, yet still behaves like an
-  // installable PWA when added to a phone's home screen.
-  (function () {
-    var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
-      + '<rect width="512" height="512" rx="96" fill="#2C4733"/>'
-      + '<text x="256" y="336" font-size="288" text-anchor="middle">🐾</text>'
-      + '</svg>';
-    var iconBlobUrl;
-    try {
-      iconBlobUrl = URL.createObjectURL(new Blob([iconSvg], { type: "image/svg+xml" }));
-      document.getElementById("appleIconLink").setAttribute("href", iconBlobUrl);
-      document.getElementById("faviconLink").setAttribute("href", iconBlobUrl);
-    } catch (e) { /* icon is a nice-to-have; ignore failures */ }
 
-    try {
-      var manifest = {
-        name: "CAMS題庫",
-        short_name: "CAMS題庫",
-        start_url: ".",
-        display: "standalone",
-        orientation: "portrait",
-        background_color: "#FAF7F0",
-        theme_color: "#2C4733",
-        icons: iconBlobUrl ? [{ src: iconBlobUrl, sizes: "512x512", type: "image/svg+xml" }] : []
-      };
-      var manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
-      document.getElementById("manifestLink").setAttribute("href", manifestBlobUrl);
-    } catch (e) { /* manifest is a progressive enhancement; ignore failures */ }
-  })();
-</script>
+  /* Native-app touch feel: no rubber-band/bounce scrolling past the edges,
+     no double-tap-to-zoom delay or accidental zoom on rapid taps, and no
+     lingering grey tap-highlight flash on buttons/links. */
+  html, body {
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
 </head>
 <body class="min-h-screen">
 
