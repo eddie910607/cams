@@ -1,0 +1,31 @@
+{
+  "name": "CAMS 題庫",
+  "short_name": "CAMS",
+  "description": "CAMS 認證考試練習題庫，支援學習模式、測驗模式、排行榜與跨裝置同步。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2C4733",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMkM0NzMzIi8+CiAgPGVsbGlwc2UgY3g9IjI1NiIgY3k9IjMxNiIgcng9IjEwOCIgcnk9Ijg2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxjaXJjbGUgY3g9IjIxMiIgY3k9IjE0MiIgcj0iNDYiIGZpbGw9IiNGQUY3RjAiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIxNDIiIHI9IjQ2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMzYyIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzcyIEwzMzAgNDU2IEwzNzggNDI2IEw0MDggNDU0IEwzOTIgMzcyIFoiIGZpbGw9IiNCOTgyMkUiLz4KICA8Y2lyY2xlIGN4PSIzNzgiIGN5PSIzNjYiIHI9IjU4IiBmaWxsPSIjRTNBODU3IiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iOCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzY2IEwzNzAgMzg0IEw0MDYgMzQ0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMkM0NzMzIi8+CiAgPGVsbGlwc2UgY3g9IjI1NiIgY3k9IjMxNiIgcng9IjEwOCIgcnk9Ijg2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxjaXJjbGUgY3g9IjIxMiIgY3k9IjE0MiIgcj0iNDYiIGZpbGw9IiNGQUY3RjAiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIxNDIiIHI9IjQ2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMzYyIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzcyIEwzMzAgNDU2IEwzNzggNDI2IEw0MDggNDU0IEwzOTIgMzcyIFoiIGZpbGw9IiNCOTgyMkUiLz4KICA8Y2lyY2xlIGN4PSIzNzgiIGN5PSIzNjYiIHI9IjU4IiBmaWxsPSIjRTNBODU3IiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iOCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzY2IEwzNzAgMzg0IEw0MDYgMzQ0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMkM0NzMzIi8+CiAgPGVsbGlwc2UgY3g9IjI1NiIgY3k9IjMxNiIgcng9IjEwOCIgcnk9Ijg2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxjaXJjbGUgY3g9IjIxMiIgY3k9IjE0MiIgcj0iNDYiIGZpbGw9IiNGQUY3RjAiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIxNDIiIHI9IjQ2IiBmaWxsPSIjRkFGN0YwIi8+CiAgPGNpcmNsZSBjeD0iMzYyIiBjeT0iMTk2IiByPSI0MiIgZmlsbD0iI0ZBRjdGMCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzcyIEwzMzAgNDU2IEwzNzggNDI2IEw0MDggNDU0IEwzOTIgMzcyIFoiIGZpbGw9IiNCOTgyMkUiLz4KICA8Y2lyY2xlIGN4PSIzNzgiIGN5PSIzNjYiIHI9IjU4IiBmaWxsPSIjRTNBODU3IiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iOCIvPgogIDxwYXRoIGQ9Ik0zNTIgMzY2IEwzNzAgMzg0IEw0MDYgMzQ0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyQzQ3MzMiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
